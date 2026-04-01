@@ -1,10 +1,32 @@
 import type { Metadata } from 'next'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'DosificaConcreto | Diseño de Mezclas ACI 211.1 + NSR-10',
+  title: {
+    default: 'DosificaConcreto | Diseño de Mezclas ACI 211.1 + NSR-10',
+    template: '%s | DosificaConcreto',
+  },
   description: 'Herramienta gratuita para diseño de mezclas de concreto según ACI 211.1 y NSR-10. Corrección de humedad, granulometría ASTM C33. Sin registro.',
-  keywords: ['diseño de mezclas', 'concreto', 'ACI 211', 'NSR-10', 'Colombia', 'dosificación'],
+  keywords: ['diseño de mezclas', 'concreto', 'ACI 211', 'NSR-10', 'Colombia', 'dosificación', 'ingeniería civil', 'ASTM C33'],
+  metadataBase: new URL('https://dosificaconcreto.vercel.app'),
+  openGraph: {
+    title: 'DosificaConcreto — Diseño de Mezclas de Concreto',
+    description: 'Herramienta gratuita de diseño de mezclas ACI 211.1 con verificación NSR-10. Para ingenieros y laboratoristas en Colombia.',
+    url: 'https://dosificaconcreto.vercel.app',
+    siteName: 'DosificaConcreto',
+    locale: 'es_CO',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'DosificaConcreto — Diseño de Mezclas ACI 211.1',
+    description: 'Herramienta gratuita de diseño de mezclas de concreto para Colombia. ACI 211.1 + NSR-10.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function RootLayout({
@@ -32,7 +54,9 @@ export default function RootLayout({
         </header>
 
         <main className="flex-1">
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </main>
 
         <footer className="bg-gray-800 text-gray-400 text-xs text-center py-4">

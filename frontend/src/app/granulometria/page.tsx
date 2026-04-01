@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import axios from 'axios'
+import AlertBanner from '@/components/AlertBanner'
+import Badge from '@/components/Badge'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
@@ -149,6 +151,7 @@ export default function GranulometriaPage() {
                   value={tms}
                   onChange={e => setTms(Number(e.target.value))}
                   className="input-field"
+                  aria-label="Tamaño máximo nominal"
                 >
                   <option value="9.5">9.5 mm (3/8")</option>
                   <option value="12.5">12.5 mm (1/2")</option>
@@ -183,6 +186,7 @@ export default function GranulometriaPage() {
                     max="100"
                     step="0.1"
                     className="input-field text-right font-mono"
+                    aria-label={`% retenido en tamiz ${tam}`}
                   />
                   <span className="text-gray-400 text-sm shrink-0">%</span>
                 </div>
@@ -204,7 +208,7 @@ export default function GranulometriaPage() {
             {cargando ? 'Calculando...' : '📊 Analizar Granulometría'}
           </button>
 
-          {error && <div className="alert-danger">{error}</div>}
+          {error && <AlertBanner type="danger">{error}</AlertBanner>}
         </div>
 
         {/* ── RESULTADOS ── */}
@@ -216,8 +220,8 @@ export default function GranulometriaPage() {
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-primary">Resultado</h3>
                   {resultado.cumple_astm
-                    ? <span className="badge-success">✓ CUMPLE ASTM C33</span>
-                    : <span className="badge-danger">✗ NO CUMPLE ASTM C33</span>
+                    ? <Badge type="success">✓ CUMPLE ASTM C33</Badge>
+                    : <Badge type="danger">✗ NO CUMPLE ASTM C33</Badge>
                   }
                 </div>
 
@@ -230,7 +234,7 @@ export default function GranulometriaPage() {
                 )}
 
                 {resultado.alertas.map((a, i) => (
-                  <div key={i} className="alert-warning mt-2">⚠️ {a}</div>
+                  <AlertBanner key={i} type="warning">⚠️ {a}</AlertBanner>
                 ))}
               </div>
 

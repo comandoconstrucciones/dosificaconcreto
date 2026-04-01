@@ -2,6 +2,11 @@
 
 import { useState, useCallback } from 'react'
 import axios from 'axios'
+import Campo from '@/components/Campo'
+import ResultCard from '@/components/ResultCard'
+import AlertBanner from '@/components/AlertBanner'
+import Badge from '@/components/Badge'
+
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 
@@ -44,6 +49,14 @@ interface Resultado {
   alertas: string[]
 }
 
+// ─── CAMPOS NUMÉRICOS ────────────────────────────────────────────────────────
+
+const NUMERIC_FIELDS = new Set([
+  'fc_especificado', 'slump_mm', 'tms_mm', 'ge_ag_ssd', 'absorcion_ag',
+  'humedad_ag', 'peso_unitario_ag', 'ge_af_ssd', 'absorcion_af',
+  'humedad_af', 'modulo_finura', 'n_muestras',
+])
+
 // ─── DEFAULTS Colombia ────────────────────────────────────────────────────────
 
 const DEFAULTS: FormData = {
@@ -64,52 +77,6 @@ const DEFAULTS: FormData = {
   n_muestras: 0,
 }
 
-// ─── COMPONENTES AUXILIARES ──────────────────────────────────────────────────
-
-function Campo({ label, name, value, onChange, type = 'number', step = '0.01', min, max, children }: {
-  label: string
-  name: string
-  value: string | number
-  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void
-  type?: string
-  step?: string
-  min?: string
-  max?: string
-  children?: React.ReactNode
-}) {
-  return (
-    <div>
-      <label className="label">{label}</label>
-      {children || (
-        <input
-          type={type}
-          name={name}
-          value={value}
-          onChange={onChange}
-          step={step}
-          min={min}
-          max={max}
-          className="input-field"
-        />
-      )}
-    </div>
-  )
-}
-
-function ResultCard({ label, value, unit, sub }: {
-  label: string; value: string | number; unit?: string; sub?: string
-}) {
-  return (
-    <div className="result-card">
-      <div className="text-xs text-blue-200 mb-1">{label}</div>
-      <div className="text-2xl font-bold">
-        {value} <span className="text-sm font-normal">{unit}</span>
-      </div>
-      {sub && <div className="text-xs text-blue-200 mt-1">{sub}</div>}
-    </div>
-  )
-}
-
 // ─── PÁGINA PRINCIPAL ────────────────────────────────────────────────────────
 
 export default function MezclePage() {
@@ -124,7 +91,11 @@ export default function MezclePage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
-    setForm(prev => ({ ...prev, [name]: isNaN(Number(value)) ? value : Number(value) || value }))
+    if (NUMERIC_FIELDS.has(name)) {
+      setForm(prev => ({ ...prev, [name]: value === '' ? '' : Number(value) }))
+    } else {
+      setForm(prev => ({ ...prev, [name]: value }))
+    }
   }
 
   const calcular = async () => {
@@ -211,7 +182,7 @@ export default function MezclePage() {
               <Campo label="Slump (mm)" name="slump_mm" value={form.slump_mm} onChange={handleChange} min="25" max="200" step="5" />
               <div className="col-span-2">
                 <label className="label">Tamaño máx. nominal (mm)</label>
-                <select name="tms_mm" value={form.tms_mm} onChange={handleChange} className="input-field">
+                <select name="tms_mm" value={form.tms_mm} onChange={handleChange} className="input-field" aria-label="Tamaño máximo nominal">
                   <option value="9.5">9.5 mm (3/8")</option>
                   <option value="12.5">12.5 mm (1/2")</option>
                   <option value="19">19.0 mm (3/4") — más común</option>
@@ -250,7 +221,7 @@ export default function MezclePage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label">Tipo de cemento</label>
-                <select name="tipo_cemento" value={form.tipo_cemento} onChange={handleChange} className="input-field">
+                <select name="tipo_cemento" value={form.tipo_cemento} onChange={handleChange} className="input-field" aria-label="Tipo de cemento">
                   <option value="I">Tipo I (uso general)</option>
                   <option value="II">Tipo II (moderado)</option>
                   <option value="III">Tipo III (alta resistencia)</option>
@@ -261,7 +232,7 @@ export default function MezclePage() {
               </div>
               <div>
                 <label className="label">Clase de exposición NSR-10</label>
-                <select name="clase_exposicion" value={form.clase_exposicion} onChange={handleChange} className="input-field">
+                <select name="clase_exposicion" value={form.clase_exposicion} onChange={handleChange} className="input-field" aria-label="Clase de exposición NSR-10">
                   <optgroup label="Sulfatos">
                     <option value="S0">S0 — Sin exposición</option>
                     <option value="S1">S1 — Moderada</option>
@@ -305,7 +276,7 @@ export default function MezclePage() {
             <button onClick={limpiar} className="btn-secondary">Limpiar</button>
           </div>
 
-          {error && <div className="alert-danger">{error}</div>}
+          {error && <AlertBanner type="danger">{error}</AlertBanner>}
         </div>
 
         {/* ── RESULTADOS ── */}
@@ -316,7 +287,7 @@ export default function MezclePage() {
               {resultado.alertas.length > 0 && (
                 <div className="space-y-2">
                   {resultado.alertas.map((a, i) => (
-                    <div key={i} className="alert-warning">⚠️ {a}</div>
+                    <AlertBanner key={i} type="warning">⚠️ {a}</AlertBanner>
                   ))}
                 </div>
               )}
@@ -393,6 +364,7 @@ export default function MezclePage() {
                       value={humAG}
                       onChange={e => handleHumAG(Number(e.target.value))}
                       className="w-full accent-primary"
+                      aria-label="Humedad agregado grueso en campo"
                     />
                     <div className="flex justify-between text-xs text-gray-400">
                       <span>0%</span><span>10%</span>
@@ -409,6 +381,7 @@ export default function MezclePage() {
                       value={humAF}
                       onChange={e => handleHumAF(Number(e.target.value))}
                       className="w-full accent-primary"
+                      aria-label="Humedad agregado fino en campo"
                     />
                     <div className="flex justify-between text-xs text-gray-400">
                       <span>0%</span><span>15%</span>
@@ -420,8 +393,8 @@ export default function MezclePage() {
               {/* Cumplimiento durabilidad */}
               <div className="flex items-center gap-2">
                 {resultado.cumple_durabilidad
-                  ? <span className="badge-success">✓ Cumple durabilidad NSR-10</span>
-                  : <span className="badge-danger">✗ No cumple durabilidad NSR-10</span>
+                  ? <Badge type="success">✓ Cumple durabilidad NSR-10</Badge>
+                  : <Badge type="danger">✗ No cumple durabilidad NSR-10</Badge>
                 }
               </div>
             </div>

@@ -19,21 +19,39 @@ Herramienta web gratuita de **diseño de mezclas de concreto** según **ACI 211.
 
 ```
 dosificaconcreto/
+├── .github/workflows/ci.yml          # GitHub Actions: pytest + lint + build
 ├── api/index.py                      # Entry point Vercel serverless → FastAPI
+├── requirements.txt                  # Dependencias Python
 ├── backend/
 │   ├── main.py                       # FastAPI app: endpoints y schemas Pydantic
+│   ├── pytest.ini                    # Configuración pytest
 │   ├── calculators/
 │   │   ├── aci211.py                 # Motor ACI 211.1 (diseño de mezcla completo)
 │   │   └── granulometry.py           # Análisis granulométrico ASTM C33
 │   └── tests/
-│       └── test_aci211.py            # 5 test cases (pytest-compatible, ejecutables directo)
+│       ├── conftest.py               # Config path para imports
+│       ├── test_aci211.py            # 33 tests ACI 211.1 (pytest)
+│       └── test_granulometria.py     # 27 tests granulometría (pytest)
 ├── frontend/
-│   ├── src/app/
-│   │   ├── layout.tsx                # Layout raíz (header, nav, footer)
-│   │   ├── page.tsx                  # Home: hero + tarjetas de módulos
-│   │   ├── globals.css               # Tailwind + custom component classes
-│   │   ├── mezcla/page.tsx           # Diseñador de mezcla (formulario + resultados)
-│   │   └── granulometria/page.tsx    # Análisis granulométrico (tabla + gráfica)
+│   ├── public/robots.txt             # Robots.txt para SEO
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Campo.tsx             # Input de formulario reutilizable
+│   │   │   ├── ResultCard.tsx        # Tarjeta de resultado
+│   │   │   ├── AlertBanner.tsx       # Alerta warning/danger
+│   │   │   ├── Badge.tsx             # Badge success/danger
+│   │   │   └── ErrorBoundary.tsx     # Error boundary global
+│   │   └── app/
+│   │       ├── layout.tsx            # Layout raíz (header, nav, footer, OG tags)
+│   │       ├── page.tsx              # Home: hero + tarjetas de módulos
+│   │       ├── sitemap.ts            # Sitemap dinámico para SEO
+│   │       ├── globals.css           # Tailwind + custom component classes
+│   │       ├── mezcla/
+│   │       │   ├── layout.tsx        # Metadata SEO mezcla
+│   │       │   └── page.tsx          # Diseñador de mezcla
+│   │       └── granulometria/
+│   │           ├── layout.tsx        # Metadata SEO granulometría
+│   │           └── page.tsx          # Análisis granulométrico
 │   ├── tailwind.config.ts            # Colores: primary (#1a3a5c), accent (#e67e22)
 │   └── package.json
 ├── vercel.json                       # Routing: /api/* → Python, /* → Next.js
@@ -86,10 +104,12 @@ Sigue los 7 pasos del método ACI 211.1:
 - **No hay DB** — todo es cálculo stateless, sin persistencia
 - **No hay auth** — herramienta 100% pública
 - **CORS**: `allow_origins=["*"]` para acceso desde cualquier dominio
-- **Componentes inline** — no hay carpeta `/components`; los helpers (`Campo`, `ResultCard`) están definidos dentro de los page files
-- **Tests**: no usan pytest como framework, se ejecutan con `python3` directamente (assertions + prints)
+- **Componentes extraídos** — `Campo`, `ResultCard`, `AlertBanner`, `Badge`, `ErrorBoundary` en `/components`
+- **Tests**: pytest framework, ejecutar con `python3 -m pytest tests/ -v` desde `/backend`
+- **CI**: GitHub Actions en `.github/workflows/ci.yml` (backend tests + frontend lint/build)
+- **Path alias**: `@/*` → `src/*` configurado en tsconfig.json
 
-## Estado actual (v1.0)
+## Estado actual (v1.0.1)
 
 ### Funcionando correctamente
 - Motor ACI 211.1 completo con los 7 pasos
@@ -101,18 +121,17 @@ Sigue los 7 pasos del método ACI 211.1:
 - Curva granulométrica con Recharts (eje log)
 - Módulo de finura automático
 - Suma de volúmenes valida a 1.000 m³ exacto
-- 5 test cases pasan (f'cr, caso típico, alta resistencia, slump alto, volúmenes)
+- 60 tests pasan (ACI 211.1 + granulometría + clases exposición + corrección humedad)
 - Frontend build exitoso
 - Deploy Vercel funcional
+- GitHub Actions CI configurado
+- SEO: sitemap.xml, robots.txt, Open Graph, meta descriptions por página
+- Componentes UI extraídos y reutilizables
+- Error Boundary global
+- Accesibilidad: aria-labels en formularios
+- Validación backend de suma de retenidos
 
-### Problemas y deuda técnica identificados
-- Tests no usan framework (pytest) — no hay CI que los ejecute automáticamente
-- No hay tests para el módulo de granulometría
-- No hay validación de que `retenidos_pct` sume 100% en el backend (solo frontend)
-- Componentes UI monolíticos (todo en page.tsx, no extraídos a /components)
-- No hay `requirements.txt` ni `pyproject.toml` para dependencias Python
-- No hay ESLint config personalizado
-- Sin SEO avanzado (no hay sitemap.xml, robots.txt, Open Graph tags)
-- El `handleChange` del formulario tiene un parsing de tipos frágil (`isNaN` + fallback)
+### Deuda técnica restante
+- 1 vulnerabilidad npm (high) en `next` — requiere Next.js 16 (breaking change)
 - CORS abierto (`*`) — aceptable para v1 pero revisar en producción
-- 2 vulnerabilidades npm (1 moderate, 1 high) — ejecutar `npm audit fix`
+- No hay ESLint config personalizado (usa defaults de Next.js)

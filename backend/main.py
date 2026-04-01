@@ -208,6 +208,13 @@ def limites_granulometria(tipo: str, tms: float = 19.0):
 def calcular_granulo(data: GranulometriaInput):
     """Analiza curva granulométrica y verifica cumplimiento ASTM C33"""
     try:
+        # Validar que la suma de retenidos sea ~100%
+        suma = sum(data.retenidos_pct)
+        if abs(suma - 100.0) > 1.5:
+            raise ValueError(
+                f"La suma de % retenidos debe ser 100% (±1.5%). Suma actual: {suma:.1f}%"
+            )
+
         if data.tipo == "fino":
             if len(data.retenidos_pct) != 8:
                 raise ValueError("Se requieren 8 valores para agregado fino")

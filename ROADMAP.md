@@ -33,28 +33,29 @@
 
 ---
 
-## v1.0.1 — Deuda técnica y calidad 🔧
+## v1.0.1 — Deuda técnica y calidad ✅ (completado)
 
 **Infraestructura de desarrollo**
-- [ ] Crear `requirements.txt` con dependencias Python (fastapi, pydantic, uvicorn)
-- [ ] Migrar tests a pytest con `pytest.ini` o `pyproject.toml`
-- [ ] Agregar tests para módulo de granulometría (fino y grueso)
-- [ ] Configurar GitHub Actions CI (lint + tests en cada PR)
-- [ ] Resolver vulnerabilidades npm (`npm audit fix`)
-- [ ] Agregar `.nvmrc` o `engines` en package.json
+- [x] Crear `requirements.txt` con dependencias Python (fastapi, pydantic, uvicorn, pytest)
+- [x] Migrar tests a pytest con `pytest.ini`
+- [x] Agregar tests para módulo de granulometría (fino y grueso) — 27 tests nuevos
+- [x] Configurar GitHub Actions CI (lint + tests en cada PR)
+- [x] Resolver vulnerabilidades npm (`npm audit fix`) — lodash resuelto, next requiere v16
+- [x] Agregar `engines` en package.json (Node >= 18)
 
 **Calidad de código**
-- [ ] Extraer componentes reutilizables a `frontend/src/components/`
-  - `Campo.tsx`, `ResultCard.tsx`, `AlertBanner.tsx`, `Badge.tsx`
-- [ ] Agregar validación backend: `retenidos_pct` debe sumar 100% ± 1%
-- [ ] Mejorar parsing de formulario (`handleChange` con tipado robusto)
-- [ ] Agregar error boundaries en React
+- [x] Extraer componentes reutilizables a `frontend/src/components/`
+  - `Campo.tsx`, `ResultCard.tsx`, `AlertBanner.tsx`, `Badge.tsx`, `ErrorBoundary.tsx`
+- [x] Agregar validación backend: `retenidos_pct` debe sumar 100% ± 1.5%
+- [x] Mejorar parsing de formulario (`handleChange` con `NUMERIC_FIELDS` set)
+- [x] Agregar Error Boundary global en layout
 
 **SEO y accesibilidad**
-- [ ] Agregar `sitemap.xml` y `robots.txt`
-- [ ] Open Graph tags para compartir en redes
-- [ ] Meta description específica por página
-- [ ] Atributos `aria-label` en formularios
+- [x] Agregar `sitemap.ts` (dinámico) y `robots.txt`
+- [x] Open Graph + Twitter Card tags en layout raíz
+- [x] Meta description específica por página (mezcla y granulometría layouts)
+- [x] Atributos `aria-label` en formularios, selects y sliders
+- [x] Path alias `@/*` configurado en tsconfig.json
 
 ---
 
