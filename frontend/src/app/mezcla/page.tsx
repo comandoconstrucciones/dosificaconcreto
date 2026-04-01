@@ -1,10 +1,19 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import axios from 'axios'
 
 // Instancia con timeout de 10 segundos
 const api = axios.create({ timeout: 10000 })
+
+// Debounce helper — evita llamadas excesivas al API al mover sliders
+function useDebounce<T extends (...args: Parameters<T>) => void>(fn: T, delay: number) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  return useCallback((...args: Parameters<T>) => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => fn(...args), delay)
+  }, [fn, delay])
+}
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 
@@ -120,6 +129,7 @@ export default function MezclePage() {
   const [resultado, setResultado] = useState<Resultado | null>(null)
   const [inputOriginal, setInputOriginal] = useState<FormData | null>(null)
   const [cargando, setCargando] = useState(false)
+  const [sliderCargando, setSliderCargando] = useState(false)
   const [error, setError] = useState('')
   const [humAG, setHumAG] = useState(2.0)
   const [humAF, setHumAF] = useState(3.5)
@@ -157,8 +167,9 @@ export default function MezclePage() {
     }
   }
 
-  const corregirHumedad = useCallback(async (newHumAG: number, newHumAF: number) => {
+  const _corregirHumedad = useCallback(async (newHumAG: number, newHumAF: number) => {
     if (!resultado || !inputOriginal) return
+    setSliderCargando(true)
     try {
       const { data } = await api.post('/api/mezcla/corregir-humedad', {
         resultado,
@@ -174,8 +185,15 @@ export default function MezclePage() {
         ag: data.ajuste.ag_grueso_campo,
         af: data.ajuste.ag_fino_campo,
       })
-    } catch { /* silencioso */ }
+    } catch {
+      setError('Error al ajustar humedad. Intente de nuevo.')
+    } finally {
+      setSliderCargando(false)
+    }
   }, [resultado, inputOriginal])
+
+  // Debounce 300ms para no saturar el API al mover el slider
+  const corregirHumedad = useDebounce(_corregirHumedad, 300)
 
   const handleHumAG = (v: number) => {
     setHumAG(v)
@@ -384,7 +402,10 @@ export default function MezclePage() {
 
               {/* Corrección de humedad en tiempo real */}
               <div className="card">
-                <h3 className="font-semibold text-primary mb-1">Ajuste de humedad en campo</h3>
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="font-semibold text-primary">Ajuste de humedad en campo</h3>
+                  {sliderCargando && <span className="spinner" style={{borderColor:'#1a3a5c',borderTopColor:'transparent'}}></span>}
+                </div>
                 <p className="text-xs text-gray-500 mb-4">Mueva los sliders para actualizar la columna Campo</p>
 
                 <div className="space-y-4">
@@ -398,6 +419,9 @@ export default function MezclePage() {
                       value={humAG}
                       onChange={e => handleHumAG(Number(e.target.value))}
                       className="w-full accent-primary"
+                      aria-label="Humedad superficial del agregado grueso en campo"
+                      aria-valuemin={0} aria-valuemax={10} aria-valuenow={humAG}
+                      aria-valuetext={`${humAG.toFixed(1)} porciento`}
                     />
                     <div className="flex justify-between text-xs text-gray-400">
                       <span>0%</span><span>10%</span>
@@ -414,6 +438,9 @@ export default function MezclePage() {
                       value={humAF}
                       onChange={e => handleHumAF(Number(e.target.value))}
                       className="w-full accent-primary"
+                      aria-label="Humedad superficial del agregado fino en campo"
+                      aria-valuemin={0} aria-valuemax={15} aria-valuenow={humAF}
+                      aria-valuetext={`${humAF.toFixed(1)} porciento`}
                     />
                     <div className="flex justify-between text-xs text-gray-400">
                       <span>0%</span><span>15%</span>
@@ -433,7 +460,7 @@ export default function MezclePage() {
           ) : (
             <div className="card h-64 flex items-center justify-center text-gray-400">
               <div className="text-center">
-                <div className="text-4xl mb-3">🧪</div>
+                <div className="mb-3"><svg width="48" height="48" viewBox="0 0 48 48" fill="none"><path d="M24 4v40M12 24h24" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round"/><circle cx="24" cy="24" r="20" stroke="#cbd5e1" strokeWidth="1.5" fill="none"/></svg></div>
                 <p>Complete el formulario y calcule</p>
                 <p className="text-sm mt-1">Los resultados aparecerán aquí</p>
               </div>

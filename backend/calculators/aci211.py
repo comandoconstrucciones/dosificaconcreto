@@ -252,6 +252,23 @@ def diseñar_mezcla(inp: MaterialesInput) -> ResultadoMezcla:
     """
     alertas = []
 
+    # ── Alertas por valores extremos ────────────────────────────────────────
+    if inp.fc_especificado > 50:
+        alertas.append(
+            f"f'c = {inp.fc_especificado} MPa — Concreto de alta resistencia. "
+            "Verificar disponibilidad de agregados de calidad y condiciones de curado especiales."
+        )
+    if inp.slump_mm > 150:
+        alertas.append(
+            f"Slump = {inp.slump_mm:.0f} mm — Riesgo de segregación y pérdida de resistencia. "
+            "Considere usar plastificante en lugar de exceso de agua."
+        )
+    if inp.modulo_finura < 2.3 or inp.modulo_finura > 3.1:
+        alertas.append(
+            f"Módulo de finura = {inp.modulo_finura:.2f} está fuera del rango óptimo (2.3 – 3.1). "
+            "Puede afectar la trabajabilidad y el contenido de agua."
+        )
+
     # ── Paso 1: Resistencia requerida f'cr ──────────────────────────────────
     fcr, metodo_fcr = calcular_fcr(
         inp.fc_especificado, inp.desv_estandar, inp.n_muestras

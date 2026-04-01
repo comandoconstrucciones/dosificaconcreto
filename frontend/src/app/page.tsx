@@ -55,13 +55,13 @@ export default function Home() {
     <div className="max-w-5xl mx-auto px-4 py-10">
 
       {/* ── Hero ── */}
-      <div className="text-center mb-14" style={{ animation: 'fadeIn 0.5s ease forwards' }}>
+      <div className="mb-14" style={{ animation: 'fadeIn 0.5s ease forwards' }}>
         <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-1.5 rounded-full text-xs font-semibold mb-6 uppercase tracking-wide">
           <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse inline-block"></span>
           100% Gratuito · Sin registro · Hecha para Colombia
         </div>
 
-        <h1 className="text-3xl sm:text-4xl font-bold mb-4 leading-tight" style={{ color: '#1a3a5c' }}>
+        <h1 className="text-4xl font-bold mb-4 leading-tight" style={{ color: '#1a3a5c' }}>
           Diseño de Mezclas de Concreto
         </h1>
         <p className="text-lg text-gray-500 max-w-xl mx-auto mb-8">

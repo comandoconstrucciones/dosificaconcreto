@@ -1,8 +1,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* ── Design Tokens (CSS Variables) ─────────────────────────────────────── */
+:root {
+  --color-primary:       #1a3a5c;
+  --color-primary-hover: #2c5282;
+  --color-primary-dark:  #102a42;
+  --color-accent:        #e67e22;
+  --color-accent-hover:  #d35400;
+  --color-success:       #27ae60;
+  --color-danger:        #e74c3c;
+  --color-warning:       #f39c12;
+}
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+
 
 /* ── Animaciones ─────────────────────────────────────────────────────────── */
 @keyframes fadeIn {
@@ -50,10 +62,10 @@
   .card:hover { @apply shadow-md border-gray-200; }
 
   .card-accent {
-    @apply bg-white rounded-xl shadow-sm border-l-4 p-6;
-    border-left-color: #1a3a5c;
+    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
     animation: fadeIn 0.3s ease forwards;
   }
+  .card-accent:hover { @apply shadow-md border-gray-300; }
 
   /* Botones */
   .btn-primary {

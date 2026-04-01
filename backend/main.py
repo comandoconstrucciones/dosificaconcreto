@@ -6,6 +6,7 @@ Endpoints para diseño de mezclas ACI 211.1 y análisis granulométrico ASTM C33
 import logging
 import os
 import sys
+from enum import Enum
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
@@ -48,7 +49,6 @@ ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "").split(",") if os.environ
     "https://dosificaconcreto.com",
     "https://www.dosificaconcreto.com",
     "http://localhost:3000",   # desarrollo local
-    "http://localhost:3001",
 ]
 
 app.add_middleware(
@@ -63,6 +63,14 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 
 
 # ─── SCHEMAS ─────────────────────────────────────────────────────────────────
+
+class ClaseExposicion(str, Enum):
+    """Clases de exposición NSR-10 C.4.2 — valores permitidos"""
+    S0 = "S0"; S1 = "S1"; S2 = "S2"; S3 = "S3"
+    C0 = "C0"; C1 = "C1"; C2 = "C2"
+    F0 = "F0"; F1 = "F1"; F2 = "F2"
+    W0 = "W0"; W1 = "W1"; W2 = "W2"
+
 
 class MezclaInput(BaseModel):
     fc_especificado: float = Field(21.0, description="f'c especificado (MPa)", ge=10, le=70)
@@ -80,7 +88,7 @@ class MezclaInput(BaseModel):
     ge_cemento: Optional[float] = Field(None, description="Gravedad específica cemento (opcional)")
     aire_incorporado: bool = Field(False, description="¿Concreto con aire incorporado?")
     contenido_aire_pct: Optional[float] = Field(None, description="Contenido de aire % (si se incorpora)")
-    clase_exposicion: str = Field("S0", description="Clase de exposición NSR-10")
+    clase_exposicion: ClaseExposicion = Field(ClaseExposicion.S0, description="Clase de exposición NSR-10")
     desv_estandar: Optional[float] = Field(None, description="Desviación estándar histórica (MPa)")
     n_muestras: int = Field(0, description="Número de muestras en historial")
 
@@ -121,7 +129,7 @@ def calcular_mezcla(request: Request, data: MezclaInput):
             ge_cemento=data.ge_cemento,
             aire_incorporado=data.aire_incorporado,
             contenido_aire_pct=data.contenido_aire_pct,
-            clase_exposicion=data.clase_exposicion,
+            clase_exposicion=data.clase_exposicion.value,
             desv_estandar=data.desv_estandar,
             n_muestras=data.n_muestras,
         )
@@ -177,7 +185,7 @@ def corregir_humedad_campo(request: Request, data: CorreccionHumedadInput):
             humedad_af=data.inp.humedad_af,
             modulo_finura=data.inp.modulo_finura,
             tipo_cemento=data.inp.tipo_cemento,
-            clase_exposicion=data.inp.clase_exposicion,
+            clase_exposicion=data.inp.clase_exposicion.value,
         )
         r = data.resultado
         resultado_obj = ResultadoMezcla(

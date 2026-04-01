@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 import axios from 'axios'
-
-const api = axios.create({ timeout: 10000 })
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
+
+const api = axios.create({ timeout: 10000 })
 
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 
@@ -103,7 +103,7 @@ export default function GranulometriaPage() {
 
   // Verificar suma retenidos
   const sumaRetenidos = retenidos.reduce((a, b) => a + b, 0)
-  const sumaOk = Math.abs(sumaRetenidos - 100) < 1
+  const sumaOk = Math.abs(sumaRetenidos - 100) < 2  // Tolerancia ±2% igual que el backend
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -169,7 +169,7 @@ export default function GranulometriaPage() {
               <span className={`text-xs font-mono px-2 py-1 rounded ${
                 sumaOk ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
               }`}>
-                Σ = {sumaRetenidos.toFixed(1)}% {sumaOk ? '✓' : '≠ 100%'}
+                Σ = {sumaRetenidos.toFixed(1)}% {sumaOk ? '✓' : '≠ 100% ± 2%'}
               </span>
             </div>
 
@@ -336,7 +336,7 @@ export default function GranulometriaPage() {
           ) : (
             <div className="card h-64 flex items-center justify-center text-gray-400">
               <div className="text-center">
-                <div className="text-4xl mb-3">📊</div>
+                <div className="mb-3"><svg width="48" height="48" viewBox="0 0 48 48" fill="none"><path d="M8 36L16 26l8 4 14-16" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round"/><line x1="8" y1="36" x2="40" y2="36" stroke="#cbd5e1" strokeWidth="1.5"/></svg></div>
                 <p>Ingrese los % retenidos y calcule</p>
                 <p className="text-sm mt-1">La curva aparecerá aquí</p>
               </div>
