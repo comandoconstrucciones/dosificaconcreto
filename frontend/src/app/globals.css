@@ -42,3 +42,45 @@
     @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800;
   }
 }
+
+/* ─── ESTILOS DE IMPRESIÓN ───────────────────────────────────────────────── */
+
+@media print {
+  header, footer, nav,
+  .btn-primary, .btn-secondary,
+  input[type="range"],
+  .print\:hidden {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt;
+  }
+
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-section {
+    break-before: avoid;
+  }
+
+  table {
+    font-size: 9pt;
+  }
+
+  .result-card {
+    background: #f0f0f0 !important;
+    color: black !important;
+    border: 1px solid #ccc;
+  }
+
+  .badge-success, .badge-danger {
+    border: 1px solid currentColor;
+  }
+}

@@ -18,7 +18,7 @@ export default function Home() {
       </div>
 
       {/* Módulos */}
-      <div className="grid md:grid-cols-2 gap-6 mb-12">
+      <div className="grid md:grid-cols-3 gap-6 mb-12">
 
         <Link href="/mezcla" className="group">
           <div className="card hover:border-primary hover:shadow-md transition-all h-full">
@@ -43,7 +43,7 @@ export default function Home() {
         <Link href="/granulometria" className="group">
           <div className="card hover:border-primary hover:shadow-md transition-all h-full">
             <div className="text-4xl mb-4">📊</div>
-            <h2 className="text-xl font-bold text-primary mb-2">Análisis Granulométrico</h2>
+            <h2 className="text-xl font-bold text-primary mb-2">Granulometría</h2>
             <p className="text-gray-600 text-sm mb-4">
               Curva granulométrica de agregado fino y grueso con verificación
               de límites ASTM C33 / NTC 174.
@@ -56,6 +56,26 @@ export default function Home() {
             </ul>
             <span className="text-primary font-medium text-sm group-hover:underline">
               Analizar muestra →
+            </span>
+          </div>
+        </Link>
+
+        <Link href="/granulometria/combinada" className="group">
+          <div className="card hover:border-primary hover:shadow-md transition-all h-full">
+            <div className="text-4xl mb-4">🔀</div>
+            <h2 className="text-xl font-bold text-primary mb-2">Combinada</h2>
+            <p className="text-gray-600 text-sm mb-4">
+              Curva granulométrica combinada fino + grueso con zona óptima
+              para verificar gradación de la mezcla.
+            </p>
+            <ul className="text-sm text-gray-500 space-y-1 mb-4">
+              <li>✓ Combinación fino + grueso</li>
+              <li>✓ Zona óptima ICONTEC</li>
+              <li>✓ % fino óptimo sugerido</li>
+              <li>✓ Exportar curva como PNG</li>
+            </ul>
+            <span className="text-primary font-medium text-sm group-hover:underline">
+              Analizar combinada →
             </span>
           </div>
         </Link>

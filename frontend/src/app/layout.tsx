@@ -49,6 +49,7 @@ export default function RootLayout({
             <nav className="hidden sm:flex gap-6 text-sm">
               <a href="/mezcla" className="hover:text-accent transition-colors">Diseño de Mezcla</a>
               <a href="/granulometria" className="hover:text-accent transition-colors">Granulometría</a>
+              <a href="/granulometria/combinada" className="hover:text-accent transition-colors">Combinada</a>
             </nav>
           </div>
         </header>

@@ -15,8 +15,8 @@ from calculators.aci211 import (
 )
 from calculators.granulometry import (
     calcular_granulometria_fino, calcular_granulometria_grueso,
-    get_limites_fino, get_limites_grueso,
-    TAMICES_FINO, TAMICES_GRUESO
+    calcular_combinada, get_limites_fino, get_limites_grueso,
+    get_zona_optima, TAMICES_FINO, TAMICES_GRUESO, TAMICES_COMBINADOS,
 )
 
 app = FastAPI(
@@ -67,6 +67,13 @@ class GranulometriaInput(BaseModel):
     tipo: str = Field(..., description="'fino' o 'grueso'")
     tms_mm: Optional[float] = Field(19.0, description="TMS para grueso (mm)")
     retenidos_pct: list[float] = Field(..., description="% retenido por tamiz")
+
+
+class CombinedGranulometriaInput(BaseModel):
+    retenidos_fino: list[float] = Field(..., description="% retenido fino (8 tamices)")
+    retenidos_grueso: list[float] = Field(..., description="% retenido grueso (8 tamices)")
+    tms_mm: float = Field(19.0, description="TMS del grueso (mm)")
+    pct_fino: float = Field(40.0, description="% de fino en la mezcla", ge=0, le=100)
 
 
 # ─── ENDPOINTS MEZCLA ────────────────────────────────────────────────────────
@@ -253,6 +260,65 @@ def calcular_granulo(data: GranulometriaInput):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+
+
+@app.post("/api/granulometria/combinada")
+def calcular_combinada_endpoint(data: CombinedGranulometriaInput):
+    """Calcula curva granulométrica combinada fino + grueso con zona óptima"""
+    try:
+        # Validar sumas
+        suma_fino = sum(data.retenidos_fino)
+        if abs(suma_fino - 100.0) > 1.5:
+            raise ValueError(f"Suma retenidos fino: {suma_fino:.1f}% (debe ser ~100%)")
+        suma_grueso = sum(data.retenidos_grueso)
+        if abs(suma_grueso - 100.0) > 1.5:
+            raise ValueError(f"Suma retenidos grueso: {suma_grueso:.1f}% (debe ser ~100%)")
+
+        if len(data.retenidos_fino) != 8:
+            raise ValueError("Se requieren 8 valores para agregado fino")
+        if len(data.retenidos_grueso) != 8:
+            raise ValueError("Se requieren 8 valores para agregado grueso")
+
+        r_fino = calcular_granulometria_fino(data.retenidos_fino)
+        r_grueso = calcular_granulometria_grueso(data.retenidos_grueso, data.tms_mm)
+        r_comb = calcular_combinada(r_fino, r_grueso, data.pct_fino)
+
+        return {
+            "ok": True,
+            "resultado": {
+                "pct_fino": r_comb.pct_fino,
+                "pct_grueso": r_comb.pct_grueso,
+                "pct_fino_optimo": r_comb.pct_fino_optimo,
+                "en_zona_optima": r_comb.en_zona_optima,
+                "alertas": r_comb.alertas,
+                "fino_cumple_astm": r_fino.cumple_astm,
+                "grueso_cumple_astm": r_grueso.cumple_astm,
+                "modulo_finura": r_fino.modulo_finura,
+                "tamices": [
+                    {
+                        "nombre": t.nombre,
+                        "abertura_mm": t.abertura_mm,
+                        "pasa_fino_pct": t.pasa_fino_pct,
+                        "pasa_grueso_pct": t.pasa_grueso_pct,
+                        "pasa_combinado_pct": t.pasa_combinado_pct,
+                        "zona_inf": t.zona_inf,
+                        "zona_sup": t.zona_sup,
+                        "en_zona": t.en_zona,
+                    }
+                    for t in r_comb.tamices
+                ],
+            },
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+
+
+@app.get("/api/granulometria/zona-optima")
+def zona_optima():
+    """Retorna zona óptima combinada para graficar"""
+    return {"ok": True, "zona": get_zona_optima()}
 
 
 @app.get("/api/health")

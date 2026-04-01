@@ -59,14 +59,18 @@
 
 ---
 
-## v1.1 — Granulometría avanzada 📊
+## v1.1 — Granulometría avanzada ✅ (completado)
 
-- [ ] Curva granulométrica combinada (fino + grueso) para verificar mezcla
-- [ ] Verificación zona óptima combinada (Zona II ICONTEC / NTC 174)
-- [ ] Cálculo porcentaje óptimo de combinación fino/grueso
-- [ ] Exportar curva como imagen PNG (html2canvas o similar)
-- [ ] Agregar granulometría de Tamaño #4 (TMS 50mm y 75mm)
-- [ ] Tabla de resumen imprimible (CSS @media print)
+- [x] Curva granulométrica combinada (fino + grueso) — nueva página `/granulometria/combinada`
+- [x] Verificación zona óptima combinada (ICONTEC / NTC 174)
+- [x] Cálculo porcentaje óptimo de combinación fino/grueso (búsqueda 20-60%)
+- [x] Exportar curva como imagen PNG (html2canvas) — en ambas páginas de granulometría
+- [x] Agregar TMS 50mm y 75mm a límites ASTM C33 grueso
+- [x] Estilos @media print para tabla de resumen imprimible
+- [x] Slider de % fino con recálculo en tiempo real
+- [x] Badges de cumplimiento (fino ASTM, grueso ASTM, zona óptima)
+- [x] Nuevo endpoint: POST `/api/granulometria/combinada`
+- [x] Nuevo endpoint: GET `/api/granulometria/zona-optima`
 
 ---
 

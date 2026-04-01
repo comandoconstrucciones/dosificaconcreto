@@ -45,13 +45,16 @@ dosificaconcreto/
 │   │       ├── layout.tsx            # Layout raíz (header, nav, footer, OG tags)
 │   │       ├── page.tsx              # Home: hero + tarjetas de módulos
 │   │       ├── sitemap.ts            # Sitemap dinámico para SEO
-│   │       ├── globals.css           # Tailwind + custom component classes
+│   │       ├── globals.css           # Tailwind + custom classes + @media print
 │   │       ├── mezcla/
 │   │       │   ├── layout.tsx        # Metadata SEO mezcla
 │   │       │   └── page.tsx          # Diseñador de mezcla
 │   │       └── granulometria/
 │   │           ├── layout.tsx        # Metadata SEO granulometría
-│   │           └── page.tsx          # Análisis granulométrico
+│   │           ├── page.tsx          # Análisis granulométrico (fino/grueso)
+│   │           └── combinada/
+│   │               ├── layout.tsx    # Metadata SEO combinada
+│   │               └── page.tsx      # Curva combinada + zona óptima
 │   ├── tailwind.config.ts            # Colores: primary (#1a3a5c), accent (#e67e22)
 │   └── package.json
 ├── vercel.json                       # Routing: /api/* → Python, /* → Next.js
@@ -84,6 +87,8 @@ cd frontend && npm run lint
 | GET | `/api/mezcla/valores-tipicos` | Valores default para Bogotá |
 | GET | `/api/granulometria/limites/{tipo}` | Límites ASTM C33 (fino/grueso) |
 | POST | `/api/granulometria/calcular` | Análisis granulométrico |
+| POST | `/api/granulometria/combinada` | Curva combinada fino + grueso |
+| GET | `/api/granulometria/zona-optima` | Zona óptima para graficar |
 | GET | `/api/health` | Health check |
 
 ## Arquitectura del motor de cálculo (aci211.py)
@@ -109,7 +114,7 @@ Sigue los 7 pasos del método ACI 211.1:
 - **CI**: GitHub Actions en `.github/workflows/ci.yml` (backend tests + frontend lint/build)
 - **Path alias**: `@/*` → `src/*` configurado en tsconfig.json
 
-## Estado actual (v1.0.1)
+## Estado actual (v1.1)
 
 ### Funcionando correctamente
 - Motor ACI 211.1 completo con los 7 pasos
@@ -121,7 +126,11 @@ Sigue los 7 pasos del método ACI 211.1:
 - Curva granulométrica con Recharts (eje log)
 - Módulo de finura automático
 - Suma de volúmenes valida a 1.000 m³ exacto
-- 60 tests pasan (ACI 211.1 + granulometría + clases exposición + corrección humedad)
+- 73 tests pasan (ACI 211.1 + granulometría + combinada + clases exposición)
+- Granulometría combinada fino + grueso con zona óptima ICONTEC
+- Exportar curvas como PNG (html2canvas)
+- Estilos @media print para imprimir tablas
+- TMS 50mm y 75mm soportados en grueso
 - Frontend build exitoso
 - Deploy Vercel funcional
 - GitHub Actions CI configurado

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import axios from 'axios'
+import html2canvas from 'html2canvas'
 import AlertBanner from '@/components/AlertBanner'
 import Badge from '@/components/Badge'
 import {
@@ -55,8 +56,21 @@ export default function GranulometriaPage() {
   const [resultado, setResultado] = useState<ResultadoGranulo | null>(null)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
+  const chartRef = useRef<HTMLDivElement>(null)
 
   const tamices = tipo === 'fino' ? TAMICES_FINO : TAMICES_GRUESO
+
+  const exportarPNG = async () => {
+    if (!chartRef.current) return
+    const canvas = await html2canvas(chartRef.current, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+    })
+    const link = document.createElement('a')
+    link.download = `granulometria-${tipo}.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  }
 
   const handleTipo = (t: 'fino' | 'grueso') => {
     setTipo(t)
@@ -240,8 +254,13 @@ export default function GranulometriaPage() {
 
               {/* Gráfica */}
               {datosGrafica.length > 0 && (
-                <div className="card">
-                  <h3 className="font-semibold text-primary mb-3">Curva granulométrica</h3>
+                <div className="card" ref={chartRef}>
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="font-semibold text-primary">Curva granulométrica</h3>
+                    <button onClick={exportarPNG} className="btn-secondary text-xs py-1.5 px-3 print:hidden">
+                      Exportar PNG
+                    </button>
+                  </div>
                   <ResponsiveContainer width="100%" height={280}>
                     <LineChart data={datosGrafica} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
