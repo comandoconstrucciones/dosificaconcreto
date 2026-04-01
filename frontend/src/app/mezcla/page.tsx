@@ -299,8 +299,10 @@ export default function MezclePage() {
           </div>
 
           <div className="flex gap-3">
-            <button onClick={calcular} disabled={cargando} className="btn-primary flex-1">
-              {cargando ? 'Calculando...' : '🧮 Calcular Mezcla'}
+            <button onClick={calcular} disabled={cargando} className="btn-accent flex-1 text-base py-3">
+              {cargando
+                ? <><span className="spinner mr-2"></span>Calculando...</>
+                : <>Calcular Mezcla</>}
             </button>
             <button onClick={limpiar} className="btn-secondary">Limpiar</button>
           </div>
