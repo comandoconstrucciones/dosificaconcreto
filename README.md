@@ -1,66 +1,48 @@
 # DosificaConcreto 🏗️
 
-Calculadora profesional de diseño de mezclas de concreto según **ACI 211.1** y **NSR-10 Colombia**.
+Herramienta web gratuita para diseño de mezclas de concreto según **ACI 211.1** y **NSR-10**.
 
-## Características
+## ¿Qué hace?
 
-- ✅ Motor ACI 211.1 completo (7 pasos)
-- ✅ Resistencia requerida f'cr (con y sin historial estadístico)
-- ✅ Verificación de durabilidad NSR-10 C.4/C.5 (exposición F, S, W, C)
-- ✅ Corrección por humedad de agregados (laboratorio → campo)
-- ✅ Volumen absoluto — suma exacta a 1.000 m³
-- 🔜 API FastAPI REST
-- 🔜 Frontend Next.js
-- 🔜 Curva granulométrica ASTM C33
-- 🔜 Exportar informe PDF
-- 🔜 Costo por m³ con precios Colombia
+- Diseño completo de mezclas por el método ACI 211.1
+- Resistencia requerida f'cr (con o sin historial estadístico)
+- Verificación de durabilidad según clase de exposición (NSR-10 C.4)
+- Corrección por humedad de agregados en campo
+- Curva granulométrica vs límites ASTM C33
+- Exportación de memoria de cálculo en PDF
 
 ## Stack
 
-- **Backend:** Python + FastAPI
+- **Backend:** FastAPI (Python)
 - **Frontend:** Next.js 14 (React)
 - **Deploy:** Vercel
 
-## Uso rápido (backend)
+## Estructura
 
-```python
-from backend.calculators.aci211 import diseñar_mezcla, MaterialesInput
-
-inp = MaterialesInput(
-    fc_especificado=21.0,
-    slump_mm=90,
-    tms_mm=19.0,
-    ge_ag_ssd=2.68,
-    absorcion_ag=0.5,
-    humedad_ag=2.0,
-    peso_unitario_ag=1600,
-    ge_af_ssd=2.64,
-    absorcion_af=1.3,
-    humedad_af=4.0,
-    modulo_finura=2.80,
-    tipo_cemento="I",
-    clase_exposicion="S0"
-)
-
-r = diseñar_mezcla(inp)
-print(f"Cemento: {r.cemento} kg/m³")
-print(f"Agua (campo): {r.agua_campo} kg/m³")
-print(f"AG campo: {r.ag_grueso_campo} kg/m³")
-print(f"AF campo: {r.ag_fino_campo} kg/m³")
+```
+dosificaconcreto/
+├── backend/
+│   ├── calculators/
+│   │   └── aci211.py       ← Motor ACI 211.1 completo
+│   └── tests/
+│       └── test_aci211.py  ← Tests validados
+└── frontend/               ← Next.js (próximamente)
 ```
 
-## Tests
+## Ejecutar tests
 
 ```bash
-python3 backend/tests/test_aci211.py
+cd backend
+python3 tests/test_aci211.py
 ```
 
 ## Normativa
 
-- ACI 211.1-91 (Reapproved 2009) — Standard Practice for Selecting Proportions for Normal, Heavyweight, and Mass Concrete
-- NSR-10 Título C — Concreto Estructural (C.4 Durabilidad, C.5 Proporciones)
-- ACI 318-19 — Building Code Requirements for Structural Concrete
+- ACI 211.1-91 (Reapproved 2009) — Standard Practice for Selecting Proportions for Normal Weight Concrete
+- ACI 318-19 — Tabla 5.3.2.2 (f'cr sin historial)
+- NSR-10 Capítulo C.4 / C.5 — Requisitos de durabilidad y resistencia
 
 ## Autor
 
-Comando Construcciones SAS — Bogotá, Colombia
+Leonardo Ríos — Comando Construcciones SAS  
+Bogotá, Colombia

@@ -5,9 +5,7 @@ __pycache__/
 .env.local
 node_modules/
 .next/
+dist/
 *.log
 .DS_Store
-dist/
-build/
-*.egg-info/
-.pytest_cache/
+venv/
