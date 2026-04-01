@@ -3,6 +3,9 @@
 import { useState, useCallback } from 'react'
 import axios from 'axios'
 
+// Instancia con timeout de 10 segundos
+const api = axios.create({ timeout: 10000 })
+
 // ─── TIPOS ───────────────────────────────────────────────────────────────────
 
 interface FormData {
@@ -136,7 +139,7 @@ export default function MezclePage() {
         ...form,
         desv_estandar: form.desv_estandar ? Number(form.desv_estandar) : null,
       }
-      const { data } = await axios.post('/api/mezcla/calcular', payload)
+      const { data } = await api.post('/api/mezcla/calcular', payload)
       setResultado(data.resultado)
       setInputOriginal(form)
       setHumAG(form.humedad_ag)
@@ -157,7 +160,7 @@ export default function MezclePage() {
   const corregirHumedad = useCallback(async (newHumAG: number, newHumAF: number) => {
     if (!resultado || !inputOriginal) return
     try {
-      const { data } = await axios.post('/api/mezcla/corregir-humedad', {
+      const { data } = await api.post('/api/mezcla/corregir-humedad', {
         resultado,
         inp: {
           ...inputOriginal,

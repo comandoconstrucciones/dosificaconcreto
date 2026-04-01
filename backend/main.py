@@ -3,11 +3,18 @@ DosificaConcreto API — FastAPI
 Endpoints para diseño de mezclas ACI 211.1 y análisis granulométrico ASTM C33
 """
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+import logging
+import os
+import sys
 from typing import Optional
-import sys, os
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from pydantic import BaseModel, Field
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 sys.path.insert(0, os.path.dirname(__file__))
 from calculators.aci211 import (
@@ -19,18 +26,40 @@ from calculators.granulometry import (
     TAMICES_FINO, TAMICES_GRUESO
 )
 
+# ─── LOGGING ─────────────────────────────────────────────────────────────────
+logging.basicConfig(level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s — %(message)s")
+logger = logging.getLogger("dosificaconcreto")
+
+# ─── APP ─────────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="DosificaConcreto API",
     description="Diseño de mezclas de concreto según ACI 211.1 y NSR-10",
-    version="1.0.0",
+    version="1.1.0",
 )
+
+# ─── RATE LIMITING ───────────────────────────────────────────────────────────
+limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# ─── CORS — solo dominios propios ────────────────────────────────────────────
+ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "").split(",") if os.environ.get("ALLOWED_ORIGINS") else [
+    "https://dosificaconcreto.com",
+    "https://www.dosificaconcreto.com",
+    "http://localhost:3000",   # desarrollo local
+    "http://localhost:3001",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
+
+# ─── GZIP — reduce payload ~60% ──────────────────────────────────────────────
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 
 # ─── SCHEMAS ─────────────────────────────────────────────────────────────────
@@ -72,7 +101,8 @@ class GranulometriaInput(BaseModel):
 # ─── ENDPOINTS MEZCLA ────────────────────────────────────────────────────────
 
 @app.post("/api/mezcla/calcular")
-def calcular_mezcla(data: MezclaInput):
+@limiter.limit("30/minute")
+def calcular_mezcla(request: Request, data: MezclaInput):
     """Diseño completo de mezcla según ACI 211.1 + verificación NSR-10"""
     try:
         inp = MaterialesInput(
@@ -96,6 +126,7 @@ def calcular_mezcla(data: MezclaInput):
             n_muestras=data.n_muestras,
         )
         resultado = diseñar_mezcla(inp)
+        logger.info(f"Mezcla calculada: f'c={data.fc_especificado} MPa, fcr={resultado.fcr}")
         return {
             "ok": True,
             "resultado": {
@@ -121,12 +152,16 @@ def calcular_mezcla(data: MezclaInput):
                 "alertas": resultado.alertas,
             }
         }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error en el cálculo: {str(e)}")
+        logger.error(f"Error en calcular_mezcla: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error interno al calcular la mezcla. Verifique los datos ingresados.")
 
 
 @app.post("/api/mezcla/corregir-humedad")
-def corregir_humedad_campo(data: CorreccionHumedadInput):
+@limiter.limit("60/minute")
+def corregir_humedad_campo(request: Request, data: CorreccionHumedadInput):
     """Ajuste rápido de proporciones de campo por cambio de humedad"""
     try:
         inp = MaterialesInput(
@@ -144,7 +179,6 @@ def corregir_humedad_campo(data: CorreccionHumedadInput):
             tipo_cemento=data.inp.tipo_cemento,
             clase_exposicion=data.inp.clase_exposicion,
         )
-        from calculators.aci211 import ResultadoMezcla
         r = data.resultado
         resultado_obj = ResultadoMezcla(
             fc_especificado=r["fc_especificado"],
@@ -161,14 +195,13 @@ def corregir_humedad_campo(data: CorreccionHumedadInput):
             ag_grueso_campo=r["ag_grueso_campo"],
             ag_fino_campo=r["ag_fino_campo"],
         )
-        ajuste = corregir_humedad(
-            resultado_obj, inp,
-            data.humedad_ag_campo,
-            data.humedad_af_campo
-        )
+        ajuste = corregir_humedad(resultado_obj, inp, data.humedad_ag_campo, data.humedad_af_campo)
         return {"ok": True, "ajuste": ajuste}
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Campo requerido faltante: {e}")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error en corrección: {str(e)}")
+        logger.error(f"Error en corregir_humedad: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error interno al corregir humedad.")
 
 
 @app.get("/api/mezcla/valores-tipicos")
@@ -201,24 +234,34 @@ def limites_granulometria(tipo: str, tms: float = 19.0):
     elif tipo == "grueso":
         return {"ok": True, "limites": get_limites_grueso(tms), "tamices": TAMICES_GRUESO}
     else:
-        raise HTTPException(status_code=400, detail="tipo debe ser 'fino' o 'grueso'")
+        raise HTTPException(status_code=400, detail="El tipo debe ser 'fino' o 'grueso'")
 
 
 @app.post("/api/granulometria/calcular")
-def calcular_granulo(data: GranulometriaInput):
+@limiter.limit("30/minute")
+def calcular_granulo(request: Request, data: GranulometriaInput):
     """Analiza curva granulométrica y verifica cumplimiento ASTM C33"""
     try:
+        # Validar suma de retenidos
+        suma = sum(data.retenidos_pct)
+        if abs(suma - 100.0) > 2.0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"La suma de porcentajes retenidos debe ser 100% ± 2%. Suma actual: {suma:.1f}%"
+            )
+
         if data.tipo == "fino":
             if len(data.retenidos_pct) != 8:
-                raise ValueError("Se requieren 8 valores para agregado fino")
+                raise HTTPException(status_code=400, detail="Se requieren exactamente 8 valores para agregado fino")
             resultado = calcular_granulometria_fino(data.retenidos_pct)
         elif data.tipo == "grueso":
             if len(data.retenidos_pct) != 8:
-                raise ValueError("Se requieren 8 valores para agregado grueso")
+                raise HTTPException(status_code=400, detail="Se requieren exactamente 8 valores para agregado grueso")
             resultado = calcular_granulometria_grueso(data.retenidos_pct, data.tms_mm or 19.0)
         else:
-            raise ValueError("tipo debe ser 'fino' o 'grueso'")
+            raise HTTPException(status_code=400, detail="El tipo debe ser 'fino' o 'grueso'")
 
+        logger.info(f"Granulometría calculada: tipo={data.tipo}, cumple={resultado.cumple_astm}, MF={resultado.modulo_finura}")
         return {
             "ok": True,
             "resultado": {
@@ -242,12 +285,15 @@ def calcular_granulo(data: GranulometriaInput):
                 ]
             }
         }
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+        logger.error(f"Error en calcular_granulo: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error interno al calcular granulometría.")
 
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "version": "1.0.0"}
+    return {"status": "ok", "version": "1.1.0"}

@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import axios from 'axios'
+
+const api = axios.create({ timeout: 10000 })
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
@@ -72,7 +74,7 @@ export default function GranulometriaPage() {
     setCargando(true)
     setError('')
     try {
-      const { data } = await axios.post('/api/granulometria/calcular', {
+      const { data } = await api.post('/api/granulometria/calcular', {
         tipo,
         tms_mm: tms,
         retenidos_pct: retenidos,
