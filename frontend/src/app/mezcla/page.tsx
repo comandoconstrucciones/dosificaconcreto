@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
-import axios from 'axios'
+import { useState, useCallback, useRef, useReducer, memo, useMemo } from 'react'
+import axios, { AxiosError } from 'axios'
 
 // Instancia con timeout de 10 segundos
 const api = axios.create({ timeout: 10000 })
@@ -76,9 +76,45 @@ const DEFAULTS: FormData = {
   n_muestras: 0,
 }
 
+// ─── FORM REDUCER ───────────────────────────────────────────────────────────
+
+type FormAction =
+  | { type: 'SET_FIELD'; name: string; value: string | number }
+  | { type: 'RESET' }
+
+function formReducer(state: FormData, action: FormAction): FormData {
+  switch (action.type) {
+    case 'SET_FIELD':
+      return { ...state, [action.name]: action.value }
+    case 'RESET':
+      return DEFAULTS
+  }
+}
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof AxiosError) {
+    const detail = err.response?.data?.detail
+    if (typeof detail === 'string') return detail
+    // Pydantic validation errors come as array
+    if (Array.isArray(detail)) {
+      return detail
+        .map((d: { loc?: string[]; msg?: string }) => {
+          const field = d.loc?.slice(-1)[0] ?? ''
+          return `${field}: ${d.msg ?? 'error'}`
+        })
+        .join('. ')
+    }
+    if (err.code === 'ECONNABORTED') return 'Tiempo de espera agotado. Intente de nuevo.'
+    if (!err.response) return 'Sin conexión al servidor. Verifique su red.'
+  }
+  return 'Error al calcular. Verifique los datos.'
+}
+
 // ─── COMPONENTES AUXILIARES ──────────────────────────────────────────────────
 
-function Campo({ label, name, value, onChange, type = 'number', step = '0.01', min, max, children }: {
+const Campo = memo(function Campo({ label, name, value, onChange, type = 'number', step = '0.01', min, max, children }: {
   label: string
   name: string
   value: string | number
@@ -91,9 +127,10 @@ function Campo({ label, name, value, onChange, type = 'number', step = '0.01', m
 }) {
   return (
     <div>
-      <label className="label">{label}</label>
+      <label htmlFor={name} className="label">{label}</label>
       {children || (
         <input
+          id={name}
           type={type}
           name={name}
           value={value}
@@ -106,13 +143,13 @@ function Campo({ label, name, value, onChange, type = 'number', step = '0.01', m
       )}
     </div>
   )
-}
+})
 
-function ResultCard({ label, value, unit, sub }: {
+const ResultCard = memo(function ResultCard({ label, value, unit, sub }: {
   label: string; value: string | number; unit?: string; sub?: string
 }) {
   return (
-    <div className="result-card">
+    <div className="result-card" role="region" aria-label={label}>
       <div className="text-xs text-blue-200 mb-1">{label}</div>
       <div className="text-2xl font-bold">
         {value} <span className="text-sm font-normal">{unit}</span>
@@ -120,12 +157,12 @@ function ResultCard({ label, value, unit, sub }: {
       {sub && <div className="text-xs text-blue-200 mt-1">{sub}</div>}
     </div>
   )
-}
+})
 
 // ─── PÁGINA PRINCIPAL ────────────────────────────────────────────────────────
 
 export default function MezclePage() {
-  const [form, setForm] = useState<FormData>(DEFAULTS)
+  const [form, dispatch] = useReducer(formReducer, DEFAULTS)
   const [resultado, setResultado] = useState<Resultado | null>(null)
   const [inputOriginal, setInputOriginal] = useState<FormData | null>(null)
   const [cargando, setCargando] = useState(false)
@@ -135,10 +172,10 @@ export default function MezclePage() {
   const [humAF, setHumAF] = useState(3.5)
   const [campo, setCampo] = useState<{ agua: number; ag: number; af: number } | null>(null)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
-    setForm(prev => ({ ...prev, [name]: isNaN(Number(value)) ? value : Number(value) || value }))
-  }
+    dispatch({ type: 'SET_FIELD', name, value: isNaN(Number(value)) ? value : Number(value) || value })
+  }, [])
 
   const calcular = async () => {
     setCargando(true)
@@ -160,8 +197,7 @@ export default function MezclePage() {
         af: data.resultado.ag_fino_campo,
       })
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setError(msg || 'Error al calcular. Verifique los datos.')
+      setError(extractErrorMessage(err))
     } finally {
       setCargando(false)
     }
@@ -205,7 +241,7 @@ export default function MezclePage() {
   }
 
   const limpiar = () => {
-    setForm(DEFAULTS)
+    dispatch({ type: 'RESET' })
     setResultado(null)
     setError('')
     setCampo(null)
@@ -231,13 +267,13 @@ export default function MezclePage() {
               <Campo label="f'c especificado (MPa)" name="fc_especificado" value={form.fc_especificado} onChange={handleChange} min="10" max="70" step="1" />
               <Campo label="Slump (mm)" name="slump_mm" value={form.slump_mm} onChange={handleChange} min="25" max="200" step="5" />
               <div className="col-span-2">
-                <label className="label">Tamaño máx. nominal (mm)</label>
-                <select name="tms_mm" value={form.tms_mm} onChange={handleChange} className="input-field">
-                  <option value="9.5">9.5 mm (3/8")</option>
-                  <option value="12.5">12.5 mm (1/2")</option>
-                  <option value="19">19.0 mm (3/4") — más común</option>
-                  <option value="25">25.0 mm (1")</option>
-                  <option value="37.5">37.5 mm (1.5")</option>
+                <label htmlFor="tms_mm" className="label">Tamaño máx. nominal (mm)</label>
+                <select id="tms_mm" name="tms_mm" value={form.tms_mm} onChange={handleChange} className="input-field">
+                  <option value="9.5">9.5 mm (3/8&quot;)</option>
+                  <option value="12.5">12.5 mm (1/2&quot;)</option>
+                  <option value="19">19.0 mm (3/4&quot;) — más común</option>
+                  <option value="25">25.0 mm (1&quot;)</option>
+                  <option value="37.5">37.5 mm (1.5&quot;)</option>
                 </select>
               </div>
             </div>
@@ -270,8 +306,8 @@ export default function MezclePage() {
             <h3 className="font-semibold text-primary mb-4">4. Cemento y exposición</h3>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Tipo de cemento</label>
-                <select name="tipo_cemento" value={form.tipo_cemento} onChange={handleChange} className="input-field">
+                <label htmlFor="tipo_cemento" className="label">Tipo de cemento</label>
+                <select id="tipo_cemento" name="tipo_cemento" value={form.tipo_cemento} onChange={handleChange} className="input-field">
                   <option value="I">Tipo I (uso general)</option>
                   <option value="II">Tipo II (moderado)</option>
                   <option value="III">Tipo III (alta resistencia)</option>
@@ -281,8 +317,8 @@ export default function MezclePage() {
                 </select>
               </div>
               <div>
-                <label className="label">Clase de exposición NSR-10</label>
-                <select name="clase_exposicion" value={form.clase_exposicion} onChange={handleChange} className="input-field">
+                <label htmlFor="clase_exposicion" className="label">Clase de exposición NSR-10</label>
+                <select id="clase_exposicion" name="clase_exposicion" value={form.clase_exposicion} onChange={handleChange} className="input-field">
                   <optgroup label="Sulfatos">
                     <option value="S0">S0 — Sin exposición</option>
                     <option value="S1">S1 — Moderada</option>
@@ -328,7 +364,7 @@ export default function MezclePage() {
             <button onClick={limpiar} className="btn-secondary">Limpiar</button>
           </div>
 
-          {error && <div className="alert-danger">{error}</div>}
+          {error && <div className="alert-danger" role="alert">{error}</div>}
         </div>
 
         {/* ── RESULTADOS ── */}
@@ -337,9 +373,9 @@ export default function MezclePage() {
             <div className="space-y-4">
               {/* Alertas */}
               {resultado.alertas.length > 0 && (
-                <div className="space-y-2">
+                <div className="space-y-2" role="alert">
                   {resultado.alertas.map((a, i) => (
-                    <div key={i} className="alert-warning">⚠️ {a}</div>
+                    <div key={i} className="alert-warning">Alerta: {a}</div>
                   ))}
                 </div>
               )}
@@ -347,7 +383,7 @@ export default function MezclePage() {
               {/* Tarjetas principales */}
               <div className="grid grid-cols-2 gap-3">
                 <ResultCard label="Resistencia requerida f'cr" value={resultado.fcr} unit="MPa" />
-                <ResultCard label="Relación a/c diseño" value={resultado.wc_diseno} sub={resultado.wc_durabilidad ? `Durabilidad: ≤${resultado.wc_durabilidad}` : undefined} />
+                <ResultCard label="Relación a/c diseño" value={resultado.wc_diseno} sub={resultado.wc_durabilidad ? `Durabilidad: <=${resultado.wc_durabilidad}` : undefined} />
                 <ResultCard label="Agua de mezclado" value={resultado.agua_lab} unit="kg/m³" />
                 <ResultCard label="Cemento" value={resultado.cemento} unit="kg/m³" sub={`${resultado.bultos_cemento} bultos de 50 kg`} />
               </div>
@@ -452,8 +488,8 @@ export default function MezclePage() {
               {/* Cumplimiento durabilidad */}
               <div className="flex items-center gap-2">
                 {resultado.cumple_durabilidad
-                  ? <span className="badge-success">✓ Cumple durabilidad NSR-10</span>
-                  : <span className="badge-danger">✗ No cumple durabilidad NSR-10</span>
+                  ? <span className="badge-success" role="status" aria-label="Cumple durabilidad NSR-10">Cumple durabilidad NSR-10</span>
+                  : <span className="badge-danger" role="status" aria-label="No cumple durabilidad NSR-10">No cumple durabilidad NSR-10</span>
                 }
               </div>
             </div>
