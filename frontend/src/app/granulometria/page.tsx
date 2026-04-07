@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import axios from 'axios'
+import { useState, useMemo } from 'react'
+import axios, { AxiosError } from 'axios'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
@@ -46,6 +46,26 @@ const TAMICES_GRUESO = [
 const DEFAULTS_FINO   = [0, 2, 8, 15, 25, 25, 20, 5]
 const DEFAULTS_GRUESO = [0, 0, 5, 25, 30, 30, 8, 2]
 
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof AxiosError) {
+    const detail = err.response?.data?.detail
+    if (typeof detail === 'string') return detail
+    if (Array.isArray(detail)) {
+      return detail
+        .map((d: { loc?: string[]; msg?: string }) => {
+          const field = d.loc?.slice(-1)[0] ?? ''
+          return `${field}: ${d.msg ?? 'error'}`
+        })
+        .join('. ')
+    }
+    if (err.code === 'ECONNABORTED') return 'Tiempo de espera agotado. Intente de nuevo.'
+    if (!err.response) return 'Sin conexión al servidor. Verifique su red.'
+  }
+  return 'Error al calcular'
+}
+
 // ─── PÁGINA ──────────────────────────────────────────────────────────────────
 
 export default function GranulometriaPage() {
@@ -65,8 +85,9 @@ export default function GranulometriaPage() {
   }
 
   const handleRetenido = (i: number, val: string) => {
+    const parsed = parseFloat(val)
     const arr = [...retenidos]
-    arr[i] = parseFloat(val) || 0
+    arr[i] = isNaN(parsed) ? 0 : parsed
     setRetenidos(arr)
   }
 
@@ -81,29 +102,29 @@ export default function GranulometriaPage() {
       })
       setResultado(data.resultado)
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setError(msg || 'Error al calcular')
+      setError(extractErrorMessage(err))
     } finally {
       setCargando(false)
     }
   }
 
-  // Preparar datos para gráfica
-  const datosGrafica = resultado
-    ? resultado.tamices
-        .filter(t => t.abertura_mm > 0)
-        .map(t => ({
-          abertura: t.abertura_mm,
-          'Material (% pasa)': t.pasa_pct,
-          'Límite inferior': t.limite_inf,
-          'Límite superior': t.limite_sup,
-        }))
-        .sort((a, b) => a.abertura - b.abertura)
-    : []
+  // Preparar datos para gráfica — memoizado para evitar recálculos
+  const datosGrafica = useMemo(() => {
+    if (!resultado) return []
+    return resultado.tamices
+      .filter(t => t.abertura_mm > 0)
+      .map(t => ({
+        abertura: t.abertura_mm,
+        'Material (% pasa)': t.pasa_pct,
+        'Límite inferior': t.limite_inf,
+        'Límite superior': t.limite_sup,
+      }))
+      .sort((a, b) => a.abertura - b.abertura)
+  }, [resultado])
 
   // Verificar suma retenidos
   const sumaRetenidos = retenidos.reduce((a, b) => a + b, 0)
-  const sumaOk = Math.abs(sumaRetenidos - 100) < 2  // Tolerancia ±2% igual que el backend
+  const sumaOk = Math.abs(sumaRetenidos - 100) < 2
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -121,9 +142,10 @@ export default function GranulometriaPage() {
           {/* Tipo y TMS */}
           <div className="card">
             <h3 className="font-semibold text-primary mb-3">Tipo de agregado</h3>
-            <div className="flex gap-3 mb-4">
+            <div className="flex gap-3 mb-4" role="group" aria-label="Tipo de agregado">
               <button
                 onClick={() => handleTipo('fino')}
+                aria-pressed={tipo === 'fino'}
                 className={`flex-1 py-2 rounded-lg font-medium text-sm transition-colors ${
                   tipo === 'fino'
                     ? 'bg-primary text-white'
@@ -134,6 +156,7 @@ export default function GranulometriaPage() {
               </button>
               <button
                 onClick={() => handleTipo('grueso')}
+                aria-pressed={tipo === 'grueso'}
                 className={`flex-1 py-2 rounded-lg font-medium text-sm transition-colors ${
                   tipo === 'grueso'
                     ? 'bg-primary text-white'
@@ -146,17 +169,18 @@ export default function GranulometriaPage() {
 
             {tipo === 'grueso' && (
               <div>
-                <label className="label">Tamaño máximo nominal (mm)</label>
+                <label htmlFor="tms_granulo" className="label">Tamaño máximo nominal (mm)</label>
                 <select
+                  id="tms_granulo"
                   value={tms}
                   onChange={e => setTms(Number(e.target.value))}
                   className="input-field"
                 >
-                  <option value="9.5">9.5 mm (3/8")</option>
-                  <option value="12.5">12.5 mm (1/2")</option>
-                  <option value="19">19.0 mm (3/4")</option>
-                  <option value="25">25.0 mm (1")</option>
-                  <option value="37.5">37.5 mm (1.5")</option>
+                  <option value="9.5">9.5 mm (3/8&quot;)</option>
+                  <option value="12.5">12.5 mm (1/2&quot;)</option>
+                  <option value="19">19.0 mm (3/4&quot;)</option>
+                  <option value="25">25.0 mm (1&quot;)</option>
+                  <option value="37.5">37.5 mm (1.5&quot;)</option>
                 </select>
               </div>
             )}
@@ -166,18 +190,23 @@ export default function GranulometriaPage() {
           <div className="card">
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-semibold text-primary">% Retenido por tamiz</h3>
-              <span className={`text-xs font-mono px-2 py-1 rounded ${
-                sumaOk ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-              }`}>
-                Σ = {sumaRetenidos.toFixed(1)}% {sumaOk ? '✓' : '≠ 100% ± 2%'}
+              <span
+                className={`text-xs font-mono px-2 py-1 rounded ${
+                  sumaOk ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                }`}
+                role="status"
+                aria-label={sumaOk ? `Suma correcta: ${sumaRetenidos.toFixed(1)}%` : `Suma incorrecta: ${sumaRetenidos.toFixed(1)}%, debe ser 100% mas o menos 2%`}
+              >
+                Suma = {sumaRetenidos.toFixed(1)}% {sumaOk ? '(OK)' : '(debe ser 100% +/- 2%)'}
               </span>
             </div>
 
             <div className="space-y-2">
               {tamices.map((tam, i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <span className="text-sm text-gray-600 w-32 shrink-0">{tam}</span>
+                  <label htmlFor={`ret_${i}`} className="text-sm text-gray-600 w-32 shrink-0">{tam}</label>
                   <input
+                    id={`ret_${i}`}
                     type="number"
                     value={retenidos[i] ?? 0}
                     onChange={e => handleRetenido(i, e.target.value)}
@@ -192,8 +221,8 @@ export default function GranulometriaPage() {
             </div>
 
             {!sumaOk && (
-              <p className="text-xs text-red-600 mt-2">
-                La suma debe ser 100% ± 1%
+              <p className="text-xs text-red-600 mt-2" role="alert">
+                La suma debe ser 100% +/- 2%
               </p>
             )}
           </div>
@@ -203,10 +232,10 @@ export default function GranulometriaPage() {
             disabled={cargando || !sumaOk}
             className="btn-primary w-full"
           >
-            {cargando ? 'Calculando...' : '📊 Analizar Granulometría'}
+            {cargando ? 'Calculando...' : 'Analizar Granulometría'}
           </button>
 
-          {error && <div className="alert-danger">{error}</div>}
+          {error && <div className="alert-danger" role="alert">{error}</div>}
         </div>
 
         {/* ── RESULTADOS ── */}
@@ -218,8 +247,8 @@ export default function GranulometriaPage() {
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-primary">Resultado</h3>
                   {resultado.cumple_astm
-                    ? <span className="badge-success">✓ CUMPLE ASTM C33</span>
-                    : <span className="badge-danger">✗ NO CUMPLE ASTM C33</span>
+                    ? <span className="badge-success" role="status" aria-label="Cumple ASTM C33">CUMPLE ASTM C33</span>
+                    : <span className="badge-danger" role="status" aria-label="No cumple ASTM C33">NO CUMPLE ASTM C33</span>
                   }
                 </div>
 
@@ -232,7 +261,7 @@ export default function GranulometriaPage() {
                 )}
 
                 {resultado.alertas.map((a, i) => (
-                  <div key={i} className="alert-warning mt-2">⚠️ {a}</div>
+                  <div key={i} className="alert-warning mt-2" role="alert">Alerta: {a}</div>
                 ))}
               </div>
 
@@ -247,18 +276,18 @@ export default function GranulometriaPage() {
                         dataKey="abertura"
                         scale="log"
                         domain={['auto', 'auto']}
-                        tickFormatter={v => `${v}`}
+                        tickFormatter={(v: number) => `${v}`}
                         label={{ value: 'Abertura (mm)', position: 'insideBottom', offset: -2, fontSize: 11 }}
                         tick={{ fontSize: 10 }}
                       />
                       <YAxis
                         domain={[0, 100]}
-                        tickFormatter={v => `${v}%`}
+                        tickFormatter={(v: number) => `${v}%`}
                         tick={{ fontSize: 10 }}
                       />
                       <Tooltip
                         formatter={(v: number, name: string) => [`${v}%`, name]}
-                        labelFormatter={v => `Abertura: ${v} mm`}
+                        labelFormatter={(v: number) => `Abertura: ${v} mm`}
                       />
                       <Legend wrapperStyle={{ fontSize: 11 }} />
                       <Line
@@ -321,10 +350,10 @@ export default function GranulometriaPage() {
                         <td className="text-right py-1.5 px-2 text-red-500">
                           {t.limite_sup ?? '—'}
                           {t.cumple === false && (
-                            <span className="ml-1 text-red-600 font-bold">✗</span>
+                            <span className="ml-1 text-red-600 font-bold" aria-label="No cumple">X</span>
                           )}
                           {t.cumple === true && (
-                            <span className="ml-1 text-green-600">✓</span>
+                            <span className="ml-1 text-green-600" aria-label="Cumple">OK</span>
                           )}
                         </td>
                       </tr>

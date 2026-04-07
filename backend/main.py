@@ -45,11 +45,16 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ─── CORS — solo dominios propios ────────────────────────────────────────────
-ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "").split(",") if os.environ.get("ALLOWED_ORIGINS") else [
-    "https://dosificaconcreto.com",
-    "https://www.dosificaconcreto.com",
-    "http://localhost:3000",   # desarrollo local
-]
+_origins_env = os.environ.get("ALLOWED_ORIGINS", "").strip()
+if _origins_env:
+    ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()]
+else:
+    ALLOWED_ORIGINS = [
+        "https://dosificaconcreto.com",
+        "https://www.dosificaconcreto.com",
+    ]
+    if os.environ.get("ENV", "production").lower() in ("dev", "development", "local"):
+        ALLOWED_ORIGINS.append("http://localhost:3000")
 
 app.add_middleware(
     CORSMiddleware,

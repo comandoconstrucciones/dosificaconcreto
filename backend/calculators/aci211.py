@@ -278,10 +278,17 @@ def diseñar_mezcla(inp: MaterialesInput) -> ResultadoMezcla:
     wc_resist = calcular_wc_por_resistencia(fcr)
 
     # Verificar durabilidad
-    dur = DURABILIDAD.get(inp.clase_exposicion, ("S0"))
-    wc_dur_max = dur[0] if isinstance(dur, tuple) else None
-    cem_min     = dur[1] if isinstance(dur, tuple) else None
-    fc_dur_min  = dur[2] if isinstance(dur, tuple) else None
+    dur = DURABILIDAD.get(inp.clase_exposicion)
+    if dur is None:
+        alertas.append(
+            f"Clase de exposición '{inp.clase_exposicion}' no reconocida — "
+            "se omite verificación de durabilidad."
+        )
+        wc_dur_max = None
+        cem_min = None
+        fc_dur_min = None
+    else:
+        wc_dur_max, cem_min, fc_dur_min = dur
 
     if wc_dur_max is not None:
         wc_diseno = min(wc_resist, wc_dur_max)
@@ -347,8 +354,10 @@ def diseñar_mezcla(inp: MaterialesInput) -> ResultadoMezcla:
     vol_af = 1.0 - vol_agua - vol_cem - vol_ag - vol_aire
 
     if vol_af <= 0:
-        alertas.append("⚠ Volumen de AF negativo — revise gravedad específica del AG o TMS")
-        vol_af = 0.01
+        raise ValueError(
+            f"Volumen de agregado fino resulta negativo ({vol_af:.4f} m³). "
+            "Revise la gravedad específica del agregado grueso, el TMS o el peso unitario."
+        )
 
     masa_af_ssd = vol_af * inp.ge_af_ssd * 1000     # kg
 
